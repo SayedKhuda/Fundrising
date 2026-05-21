@@ -1,3 +1,4 @@
-xx
-yy
-zz
+# Donor Lifetime Value = CALCULATE(SUM(donations[total_value]),
+                        ALLEXCEPT(donations, donations[donor_id]))
+
+
