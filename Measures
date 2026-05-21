@@ -1,4 +1,156 @@
-# Donor Lifetime Value = CALCULATE(SUM(donations[total_value]),
+Donor Lifetime Value    = CALCULATE(SUM(donations[total_value]),
+                          ALLEXCEPT(donations, donations[donor_id]))
+
+Average Donor LTV       = AVERAGEX (VALUES(donations[donor_id]), [Donor Lifetime Value])
+
+Total Revenue           = SUM(donations[total_value])
+Total Donations         = COUNTROWS(donations)
+Average Gift            = DIVIDE([Total Revenue], [Total Donations], 0)
+
+Average Gift Historical = CALCULATE([Average Gift],
+                          DATESINPERIOD(calendar[date],
+                          MAX(calendar[date]), -12, MONTH))
+
+Average Gift Color      = VAR CurrentAvg = [Average Gift]
+                          VAR Historical = [Average Gift Historical]
+                          VAR Comparison = DIVIDE(CurrentAvg, Historical, 0)
+                          RETURN
+                          SWITCH(TRUE(),
+                          Comparison >= 1.0, "#2A9D8F", // Green: at/above historical
+                          Comparison >= 0.90, "#E9C46A", // Amber: 90-99%
+                          "#E76F51" // Red: <90% )
+
+Average Gift Size      = CALCULATE (AVERAGE(donations[total_value]),
+                         ALLEXCEPT(donations, donations[donor_id]))
+
+Campaign Chart Title   =  "Campaign Performance by Type (Top:"  &
+                          CALCULATE (FIRSTNONBLANK(campaigns[campaign_type], 1),
+                          TOPN(1, VALUES(campaigns[campaign_type]), [Total Revenue], DESC)) & ")"
+
+Campaign Progress %    = DIVIDE([Total Revenue],
+                        SUM(campaigns[target_amount]), BLANK())
+
+Campaign Performance Color = VAR Progress = [Campaign Progress %]
+                             RETURN
+                             SWITCH(TRUE(),
+                             Progress >= 1.0, "#2A9D8F", // Green: ≥100% target
+                             Progress >= 0.75, "#E9C46A", // Amber: 75-99% target
+                            "#E76F51" // Red: <75% target)
+
+Days Since Last Gift  =  VAR LastGiftDate = CALCULATE(
+                                           MAX(donations[donation_date]),
+                                           ALLEXCEPT(donations, donations[donor_id]))
+                                           RETURN
+                                           DATEDIFF(LastGiftDate, TODAY(),DAY)
+
+Donors Last Year      = CALCULATE (DISTINCTCOUNT(donations[donor_id]),
+                        YEAR(donations[donation_date]) = YEAR(TODAY() - 1))
+
+Donors This Year      = CALCULATE (DISTINCTCOUNT(donations[donor_id]),
+                        YEAR(donations[donation_date]) = YEAR(TODAY()))
+
+Donor YoY Growth %    =  VAR CurrentYear = [Donors This Year]
+                         VAR PriorYear = [Donors Last Year]
+                         RETURN
+                         DIVIDE(CurrentYear - PriorYear, PriorYear, BLANK())
+
+Donor Card Colour     =  VAR Growth = [Donor YoY Growth %]
+                         RETURN
+                         SWITCH(TRUE(),
+                         Growth >= 0.10, "#2A9D8F",
+                         Growth >= 0, "#E9C46A",
+                         "#E76F51")
+
+Donor Trend Arrow     =  VAR Growth = [Donor YoY Growth %]
+                         RETURN
+                         IF(Growth >= 0.02, "↑ ", IF(Growth <= -0.02, "↓ ", "→ "))
+
+Funnel Stage 1 Acquired = DISTINCTCOUNT(donors[donor_id]) // All acquired donors
+
+Funnel Stage 2 First Gift = CALCULATE (DISTINCTCOUNT(donations[donor_id]),
+                            donations[donation_id] <> BLANK())
+
+Funnel Stage 3 Retained = CALCULATE (DISTINCTCOUNT(donations[donor_id]),
+                          FILTER (VALUES(donations[donor_id]),
+                          CALCULATE (COUNTROWS(donations)) >= 2 ))
+
+Funnel Stage 4 Loyal = CALCULATE (DISTINCTCOUNT(donations[donor_id]),
+                       FILTER (VALUES(donations[donor_id]),
+                       CALCULATE(COUNTROWS(donations)) >= 3 ))
+
+Funnel Stage 5 Champions = CALCULATE (DISTINCTCOUNT(donations[donor_id]),
+                           FILTER (VALUES(donations[donor_id]),
+                           CALCULATE(COUNTROWS(donations)) >= 10 ))
+Gift Frequency        = CALCULATE (COUNTROWS(donations),
                         ALLEXCEPT(donations, donations[donor_id]))
 
+Retained Donors       =  VAR DonorsThisYear = CALCULATETABLE (VALUES(donations[donor_id]),
+                                              YEAR(donations[donation_date]) = YEAR(TODAY()))
+                         VAR DonorsLastYear = CALCULATETABLE (VALUES(donations[donor_id]),
+                                              YEAR(donations[donation_date]) = YEAR(TODAY()) - 1)
+                         RETURN
+                         countrows(intersect(DonorsThisYear, DonorsLastYear))
+
+Retention Background Color = VAR Rate = [Retention Rate]
+                             RETURN
+                             IF(ISBLANK(Rate), "#F5F5F5", // Light grey if no data
+                             SWITCH(TRUE(),
+                             Rate >= 0.60, "#D4EDDA", // Light Green
+                             Rate >= 0.40, "#FFF3CD", // Light Amber
+                             "#F8D7DA" // Light Red ))
+
+Retention Rate     = DIVIDE([Retained Donors], [Donors Last Year], BLANK())
+
+Retention Card Color = VAR Rate = [Retention Rate]
+                       VAR ExcellentThreshold = 0.60
+                       VAR AcceptableThreshold = 0.40
+                       RETURN
+                       IF(ISBLANK(Rate), "#808080", // Grey if no data
+                       SWITCH(TRUE(),
+                       Rate >= ExcellentThreshold, "#2A9D8F", // Green
+                       Rate >= AcceptableThreshold, "#E9C46A", // Amber
+                       "#E76F51" // Red ))
+
+Retention Insight = VAR Rate = [Retention Rate]
+                    VAR Benchmark = 0.50 // 50% industry benchmark
+                    RETURN
+                    "Retention rate " & FORMAT(Rate, "0.0%") & " is " &
+                    IF(Rate >= Benchmark, "ABOVE", "BELOW") &
+                    " sector benchmark. " &
+                    IF(Rate >= 0.60, "Excellent performance—maintain stewardship programs.",
+                    IF(Rate >= 0.40, "Acceptable but monitor closely.",
+                    "CRITICAL: Immediate intervention required."))
+
+Revenue 3M MA      = CALCULATE([Total Revenue],
+                     DATESINPERIOD('calendar'[date], LASTDATE('calendar'[date]), -3, MONTH)) /3
+
+Revenue Target       = 1200000  // £1.2M annual  target
+
+Revenue Card Colour = VAR Target = [Revenue Target]
+                      VAR CurrentRevenue = [Total Revenue]
+                      VAR PerformancePct = DIVIDE(CurrentRevenue, Target, 0)
+                      RETURN
+                      SWITCH(TRUE(),
+                      PerformancePct >= 1.0, "#2A9D8F",
+                      PerformancePct >= 0.85, "#E9C46A",
+                      "#E76F51")
+
+Revenue Chart Title = "Monthly Revenue Trend: " &
+                      FORMAT([Total Revenue], "£#,##0K") &
+                      " YTD (" &
+                      IF([Revenue YoY Growth %] > 0, "↑", "↓") &
+                      FORMAT(ABS([Revenue YoY Growth %]), "0%") &
+                      " vs Prior Year)"
+
+Revenue Insight Text = "INSIGHT: YTD revenue of" & FORMAT([Total Revenue], "£#,##0K") &
+                       " represents " & FORMAT([Revenue YoY Growth %], "+0.0%;-0.0%") &
+                       " growth vs prior year, driven primarily by " &
+                       CALCULATE(
+                       FIRSTNONBLANK(campaigns[campaign_type], 1),
+                       TOPN(1, VALUES(campaigns[campaign_type]), [Total Revenue], DESC)
+                       ) & " campaigns."
+
+Total Donors        = DISTINCTCOUNT(donors[donor_id])
+
+Total Donors Donating = DISTINCTCOUNT(donations[donor_id])
 
