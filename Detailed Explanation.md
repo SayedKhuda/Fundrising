@@ -34,3 +34,11 @@ Two additional calculated columns were created:
    amount + gift_aid_amount
 
 This helps provide a more accurate representation of the total contribution value received from each donation.
+
+### Measures
+
+Two measures were created to analyze donor contribution behaviour and fundraising performance.
+
+- **Donor Lifetime Value (LTV)** calculates the total value donated by each donor across all their donations. This helps identify high-value donors and understand long-term donor contribution patterns.
+
+- **Average Donor LTV** calculates the average lifetime donation value across all donors. This provides an overview of the overall donor value and helps measure fundraising effectiveness.
